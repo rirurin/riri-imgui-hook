@@ -1,0 +1,63 @@
+Id = "metaphorrefantazio.tool.imguihook.riri"
+Reloaded2Id = "riri.imguihookex"
+LoggerPrefix = "Imgui Hook"
+Name = "Imgui Hook"
+Author = "Rirurin"
+PackageType = "Mod"
+DocsFile = "index.html"
+Tags = [ "bindings" ]
+IsDependency = true
+ClientSide = false
+
+Icon = "icon.jxl"
+Reloaded2Icon = "Icon.png"
+SupportedGames = [ "metaphorrefantazio", "metaphor.exe", "p3r.exe" ]
+
+[CargoImport]
+Summary = true
+Version = true
+SourceUrl = true
+ProjectUrl = true
+
+[[Credits]]
+Name = "Rirurin"
+Role = "Main Developer"
+Url = "https://riri.wtf"
+
+[UpdateSourceData]
+[UpdateSourceData.Gamebanana]
+ItemType = "Mod"
+ItemId = 559400
+
+[UpdateSourceData.Github]
+UserName = "Rirurin"
+RepositoryName = "riri-imgui-hook"
+
+[[R2Dependencies]]
+Id = "reloaded.sharedlib.hooks"
+[R2Dependencies.UpdateSourceData]
+ReleaseMetadataFileName = "Sewer56.Update.ReleaseMetadata.json"
+AssetFileName = "reloaded.sharedlib.hooks.zip"
+[R2Dependencies.UpdateSourceData.Github]
+UserName = "Sewer56"
+RepositoryName = "Reloaded.SharedLib.Hooks.ReloadedII"
+
+[[R2Dependencies]]
+Id = "Reloaded.Memory.SigScan.ReloadedII"
+[R2Dependencies.UpdateSourceData]
+ReleaseMetadataFileName = "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
+[R2Dependencies.UpdateSourceData.Github]
+UserName = "Reloaded-Project"
+RepositoryName = "Reloaded.Memory.SigScan"
+
+[[R2Dependencies]]
+Id = "SharedScans.Reloaded"
+HasInterface = true
+[R2Dependencies.UpdateSourceData]
+[R2Dependencies.UpdateSourceData.Github]
+UserName = "RyoTune"
+RepositoryName = "SharedScans"
+
+[HookSettings]
+HookLibrary = "Reloaded2CSharpHooks"
+DefaultCallingConvention = "Microsoft"

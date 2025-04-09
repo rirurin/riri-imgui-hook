@@ -1,0 +1,16 @@
+[package]
+name = "riri-imgui-hook-proc"
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license-file.workspace = true
+edition.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+riri-imgui-hook-proc-impl = { path = "../riri-imgui-hook-proc-impl" } 

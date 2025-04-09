@@ -1,0 +1,17 @@
+# Reloaded.Community only stores xx3 hash for latest Steam version!
+# See https://github.com/Reloaded-Project/Reloaded.Community/blob/main/Apps/Metaphor%20ReFantazio/App.json
+# We'll try to provide support for as many versions of the full game as possible
+# Hashes are stored in the TOML as strings since the toml crate used doesn't support u64
+
+# Full Game (Steam)
+XRD759_STEAM_102 = "0x7e8170c685f06713"
+XRD759_STEAM_103 = "0x85482f618f556093"
+XRD759_STEAM_109 = "0x52537a56edc53f12"
+XRD759_STEAM_1011 = "0x39d13fb3fc914659"
+# Full Game (UWP)
+XRD759_UWP_102 = "0xc321904755d75405"
+XRD759_UWP_103 = "0xccac4e585f26888f"
+# XRD759_UWP_109 = i didn't save this lol
+XRD759_UWP_1011 = "0x51d3b74ca903fd98"
+
+# TODO: Add other games

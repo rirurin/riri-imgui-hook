@@ -1,0 +1,12 @@
+/target
+/Cargo.lock
+/*/target
+/*/Cargo.lock
+
+/*/obj
+/*/riri_hook
+.vs/
+
+/*/incl/
+/*/middata/
+*.g.cs
