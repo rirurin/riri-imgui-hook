@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 authors = [ "Rirurin" ]
 categories = [ "games" ]
 homepage = "https://riri.wtf"

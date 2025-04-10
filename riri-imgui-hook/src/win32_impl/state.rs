@@ -49,6 +49,9 @@ use windows::{
                 WM_SETFOCUS, WM_KILLFOCUS,
                 WM_SETCURSOR, WM_NCHITTEST,
                 WM_ACTIVATE, WM_NCACTIVATE,
+                WM_GETICON,
+                WM_DEVICECHANGE,
+                WM_PAINT,
                 XBUTTON1
             }
         }
@@ -71,12 +74,15 @@ pub(crate) static XINPUT_DLL: [&'static str; 5] = [
     "xinput1_1.dll\0" // DirectX SDK
 ];
 
+#[allow(unused)]
 fn wparam_get_low_word(wparam: WPARAM) -> u16 {
     (wparam.0 & u16::MAX as usize) as u16
 }
+#[allow(unused)]
 fn wparam_get_high_word(wparam: WPARAM) -> u16 {
     ((wparam.0 >> u16::BITS as usize) & u16::MAX as usize) as u16
 }
+#[allow(unused)]
 fn lparam_get_low_word(lparam: LPARAM) -> i16 {
     (lparam.0 & u16::MAX as isize) as i16
 }
@@ -320,8 +326,7 @@ impl Win32Impl {
                     _ => todo!()
                 };
                 io.add_mouse_button_event(mouse_button, false);
-                if umsg == WM_RBUTTONUP || io.want_capture_mouse { 
-                    // WM_RBUTTONUP freezes Metaphor's WndProc (what?)
+                if io.want_capture_mouse { 
                     Some(LRESULT(0))
                 } else { None }
             },
@@ -344,7 +349,6 @@ impl Win32Impl {
             WM_SETFOCUS | WM_KILLFOCUS => {
                 let io = ctx.io_mut();
                 io.app_focus_lost = umsg == WM_KILLFOCUS;
-                // Some(LRESULT(0))
                 None
             },
             WM_KEYDOWN | WM_KEYUP | WM_SYSKEYDOWN | WM_SYSKEYUP => {
@@ -375,13 +379,17 @@ impl Win32Impl {
                         io.add_input_character(c);
                     }
                 }
-                if io.want_capture_keyboard {
+                if io.want_text_input {
                     Some(LRESULT(0))
                 } else { None }
             },
-            WM_SETCURSOR | WM_NCHITTEST => None,
-            WM_ACTIVATE | WM_NCACTIVATE => None,
-            _ => Some(LRESULT(0))
+            WM_GETICON | WM_DEVICECHANGE
+            | WM_ACTIVATE | WM_PAINT 
+            | WM_SETCURSOR | WM_NCHITTEST => None,
+            _u => {
+                // logln!(Verbose, "Unhandled window event 0x{:x}", u);
+                None
+            }
         }
     }
 }

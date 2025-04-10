@@ -1,7 +1,15 @@
-use crate::win32_impl::window::DummyWindow;
-use std::mem::MaybeUninit;
+use crate::{
+    registry::ModuleWrapper,
+    win32_impl::window::DummyWindow
+};
+use riri_mod_tools_rt::logln;
+use std::{
+    mem::MaybeUninit,
+    sync::OnceLock,
+    time::Duration
+};
 use windows::{
-    core::{ Error as WinError, HRESULT },
+    core::{ Error as WinError, HRESULT, PCSTR },
     Win32::{
         Foundation::{ HMODULE, HWND },
         Graphics::{
@@ -30,7 +38,8 @@ use windows::{
                 D3D11_SDK_VERSION,
                 ID3D11Device,
             }
-        }
+        },
+        System::LibraryLoader,
     }
 };
 
@@ -97,4 +106,34 @@ impl D3D11Init {
     pub unsafe fn get_resize_buffers_ptr(&self) -> *const u8 {
         windows_core::Interface::vtable(&self.swapchain).ResizeBuffers as *const u8
     } 
+}
+
+static DIRECT3D_DLL: OnceLock<ModuleWrapper> = OnceLock::new();
+static DIRECT3D_DLL_NAME: OnceLock<&'static str> = OnceLock::new();
+
+pub unsafe fn start_d3d11() {
+    for i in 0..20 {
+        unsafe { for dll in crate::d3d11_impl::state::DLL_NAMES {
+            if let Ok(h) = LibraryLoader::GetModuleHandleA(PCSTR(dll.as_ptr())) {
+                if !h.is_invalid() {
+                    let _ = DIRECT3D_DLL.set(h.into());
+                    let _ = DIRECT3D_DLL_NAME.set(dll);
+                    break;
+                }
+            }
+        }}
+        if DIRECT3D_DLL.get().is_some() {
+            break;
+        } else {
+            // This is expected to be run on a separate thread spun up by riri-imgui-hook-reloaded
+            std::thread::sleep(Duration::from_millis(250 + (100 * i * i)));
+        }
+    }
+    if DIRECT3D_DLL.get().is_none() {
+        logln!(Error, "Could not hook to Direct3D DLL. Closing Imgui Hook");
+        return;
+    }
+    let dll = DIRECT3D_DLL.get().unwrap().get();
+    let name = *DIRECT3D_DLL_NAME.get().unwrap();
+    logln!(Information, "Found DLL for {}: 0x{:x}", name, dll.0 as usize);
 }

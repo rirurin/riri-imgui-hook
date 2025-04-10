@@ -53,7 +53,6 @@ pub static DLL_NAMES: [&'static str; 5] = [
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct D3D11Hook {
-
     device: ID3D11Device,
     context: ID3D11DeviceContext,
     swapchain: IDXGISwapChain,
