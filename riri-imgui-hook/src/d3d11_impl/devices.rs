@@ -26,6 +26,7 @@ impl DeviceObjects {
     }
     pub unsafe fn new(device: &ID3D11Device) -> windows::core::Result<DeviceObjects> {
         let mut out = DeviceObjects::uninit();
+        // Create the blending setup
         let desc = D3D11_BLEND_DESC {
             AlphaToCoverageEnable: false.into(),
             IndependentBlendEnable: true.into(),
@@ -41,7 +42,7 @@ impl DeviceObjects {
             }; 8],
         };
         device.CreateBlendState(&desc, Some(&raw mut out.blend_state))?;
-
+        // Create the rasterizer state
         let desc = D3D11_RASTERIZER_DESC {
             FillMode: windows::Win32::Graphics::Direct3D11::D3D11_FILL_SOLID,
             CullMode: windows::Win32::Graphics::Direct3D11::D3D11_CULL_NONE,
@@ -50,7 +51,7 @@ impl DeviceObjects {
             ..Default::default()
         };
         device.CreateRasterizerState(&desc, Some(&raw mut out.raster_state))?;
-
+        // Create depth-stencil state
         let stencil_op_desc = D3D11_DEPTH_STENCILOP_DESC {
             StencilFailOp: windows::Win32::Graphics::Direct3D11::D3D11_STENCIL_OP_KEEP,
             StencilDepthFailOp: windows::Win32::Graphics::Direct3D11::D3D11_STENCIL_OP_KEEP,

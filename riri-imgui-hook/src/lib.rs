@@ -1,14 +1,17 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+pub mod d3d11_impl {
+    pub mod backup;
+    pub mod buffer;
+    pub mod devices;
+    pub mod font;
+    pub mod init;
+    pub mod shader;
+    pub mod state;
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+pub mod d3d12_impl {
+    pub mod state;
+}
+pub mod globals;
+pub mod win32_impl {
+    pub mod state;
+    pub mod window;
 }

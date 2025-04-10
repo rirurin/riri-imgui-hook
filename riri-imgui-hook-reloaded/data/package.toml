@@ -6,7 +6,7 @@ Author = "Rirurin"
 PackageType = "Mod"
 DocsFile = "index.html"
 Tags = [ "bindings" ]
-IsDependency = true
+IsDependency = false
 ClientSide = false
 
 Icon = "icon.jxl"

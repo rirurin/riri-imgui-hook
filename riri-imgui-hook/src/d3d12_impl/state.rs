@@ -1,0 +1,1 @@
+pub static DLL_NAMES: [&'static str; 1] = [ "d3d12.dll\0" ];

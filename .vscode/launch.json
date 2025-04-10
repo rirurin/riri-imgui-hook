@@ -1,0 +1,20 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "attach",
+            "name": "Attach to Metaphor: Refantazio",
+            "program": "${env:DEBUG_ATTACH_XRD759}"
+        },
+        {
+            "type": "lldb",
+            "request": "attach",
+            "name": "Attach to Persona 5 Royal",
+            "program": "${env:DEBUG_ATTACH_XRD744}"
+        },
+    ]
+}

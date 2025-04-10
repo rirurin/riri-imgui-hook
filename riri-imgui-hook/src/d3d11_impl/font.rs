@@ -36,7 +36,7 @@ impl FontObjects {
         device: &ID3D11Device,
     ) -> windows::core::Result<Self> {
         let mut out = Self::uninit();
-
+        // Build texture atlas and upload to graphics system
         let fa_tex = fonts.build_rgba32_texture();
         let desc = D3D11_TEXTURE2D_DESC {
             Width: fa_tex.width,
@@ -71,6 +71,7 @@ impl FontObjects {
 
         fonts.tex_id = TextureId::from(FONT_TEX_ID);
 
+        // Create texture sampler
         let desc = D3D11_SAMPLER_DESC {
             Filter: windows::Win32::Graphics::Direct3D11::D3D11_FILTER_MIN_MAG_MIP_LINEAR,
             AddressU: windows::Win32::Graphics::Direct3D11::D3D11_TEXTURE_ADDRESS_WRAP,
