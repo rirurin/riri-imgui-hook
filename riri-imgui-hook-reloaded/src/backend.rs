@@ -11,10 +11,13 @@ use riri_imgui_hook::{
     win32_impl::state::Win32Impl
 };
 use imgui::{
+    internal::RawWrapper,
     Context as ImContext,
-    DrawData
+    DrawData,
+    Ui as ImUI
 };
 use std::{
+    collections::HashSet,
     error::Error,
     ptr::NonNull,
     sync::Mutex,
@@ -24,15 +27,15 @@ use riri_mod_tools_rt::logln;
 use windows::Win32::{
     Foundation::{ LPARAM, WPARAM },
     Graphics::{
-        Dxgi::{ IDXGISwapChain, IDXGISwapChain1 },
-        Direct3D12::ID3D12CommandQueue
-    }
+        Direct3D12::ID3D12CommandQueue,
+        Dxgi::{ IDXGISwapChain, IDXGISwapChain1 }
+    },
 };
 
 #[derive(Debug)]
 pub enum Renderer {
     Direct3D11(D3D11Hook),
-    Direct3D12(D3D12Hook)
+    Direct3D12(D3D12Hook),
 }
 impl Renderer {
     pub fn render(&mut self, draw_data: &DrawData) -> windows::core::Result<()> {
@@ -41,20 +44,17 @@ impl Renderer {
             Self::Direct3D12(r) => r.render(draw_data)
         }
     }
-    pub fn prepare(&mut self) -> windows::core::Result<()> {
-        match self {
-            Self::Direct3D11(_) => Ok(()),
-            Self::Direct3D12(r) => r.prepare()
-        }
-    }
 }
+
+type CallbackTypeSignature = unsafe extern "C" fn(*mut ImUI, *mut <ImContext as RawWrapper>::Raw);
 
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Backend {
     imgui: ImContext,
     platform: Win32Impl,
-    renderer: Renderer
+    renderer: Renderer,
+    callbacks: HashSet<CallbackTypeSignature>
 }
 
 struct CommandQueueStore(Mutex<Option<NonNull<u8>>>);
@@ -115,8 +115,16 @@ impl Backend {
         let swapchain_ptr = unsafe { *std::mem::transmute::<_, *const usize>(&swapchain) };
         logln!(Verbose, "Got HWND: {}, swapchain: 0x{:x}", desc.OutputWindow.0 as usize, swapchain_ptr);
         let mut imgui = ImContext::create();
+
         imgui.set_ini_filename(None);
         imgui.set_log_filename(None);
+
+        // Set per-app flags
+        {
+            let target = crate::start::TARGET.get().unwrap();
+            imgui.io_mut().config_flags |= target.get_config_flags_to_set();
+        }
+
         // ImGui_ImplWin32_Init
         let platform = Win32Impl::new(&mut imgui, desc.OutputWindow);
         let wnd_proc_ptr = platform.get_wnd_proc();
@@ -125,7 +133,7 @@ impl Backend {
         // ImGui_ImplDX11_Init
         let renderer = Renderer::Direct3D11(unsafe { D3D11Hook::new(&mut imgui, swapchain)? });
         logln!(Verbose, "Platform: {}, Renderer: {}", imgui.platform_name().unwrap(), imgui.renderer_name().unwrap());
-        Ok(Self { imgui, platform, renderer })
+        Ok(Self { imgui, platform, renderer, callbacks: HashSet::new() })
     }
 
     pub fn init_d3d12(swapchain: IDXGISwapChain1, command_queue: ID3D12CommandQueue) -> Result<Self, Box<dyn Error>> {
@@ -133,8 +141,16 @@ impl Backend {
         let swapchain_ptr = unsafe { *std::mem::transmute::<_, *const usize>(&swapchain) };
         logln!(Verbose, "Got HWND: {}, swapchain: 0x{:x}", desc.OutputWindow.0 as usize, swapchain_ptr);
         let mut imgui = ImContext::create();
+
         imgui.set_ini_filename(None);
         imgui.set_log_filename(None);
+
+        // Set per-app flags
+        {
+            let target = crate::start::TARGET.get().unwrap();
+            imgui.io_mut().config_flags |= target.get_config_flags_to_set();
+        }
+
         // ImGui_ImplWin32_Init
         let platform = Win32Impl::new(&mut imgui, desc.OutputWindow);
         let wnd_proc_ptr = platform.get_wnd_proc();
@@ -143,17 +159,17 @@ impl Backend {
         // ImGui_ImplDX12_Init
         let renderer = Renderer::Direct3D12(unsafe { D3D12Hook::new(&mut imgui, swapchain, command_queue)? });
         logln!(Verbose, "Platform: {}, Renderer: {}", imgui.platform_name().unwrap(), imgui.renderer_name().unwrap());
-        Ok(Self { imgui, platform, renderer })
+        Ok(Self { imgui, platform, renderer, callbacks: HashSet::new() })
     }
 
     pub fn tick(&mut self) {
         self.platform.new_frame(&mut self.imgui);
         // self.renderer.new_frame (just calls CreateDeviceObjects if font sampler isn't initialized)
         let ui = self.imgui.new_frame();
-        let mut opened = true;
-        ui.show_demo_window(&mut opened);
-        if let Err(e) = self.renderer.prepare() {
-            logln!(Error, "Error while preparing: {}", e);
+        let ui_ptr = &raw mut *ui;
+        let ctx_ptr = unsafe { &raw mut *self.imgui.raw_mut() };
+        for cb in self.callbacks.iter() {
+            unsafe { cb(ui_ptr, ctx_ptr) }
         }
         let draw_data = self.imgui.render();
         if let Err(e) = self.renderer.render(draw_data) {
@@ -170,7 +186,7 @@ pub unsafe extern "C" fn hook_present(p_swapchain: *const u8, sync_interval: u32
     match (*backend_lock).as_mut() {
         Some(v) => { v.tick(); },
         None => { 
-            *backend_lock = match crate::start::TARGET.get().unwrap() {
+            *backend_lock = match crate::start::TARGET.get().unwrap().get_renderer() {
                 RendererType::Direct3D11 => {
                     let swapchain = std::mem::transmute::<_, IDXGISwapChain>(p_swapchain).clone();
                     Some(Backend::init_d3d11(swapchain).unwrap())
@@ -224,3 +240,19 @@ pub unsafe extern "C" fn hook_resize_buffers(p_swapchain: *const u8, buffer_coun
     original_function!(p_swapchain, buffer_count, width, height, new_format, swapchain_flags)
 }
 */
+
+#[no_mangle]
+pub unsafe extern "C" fn add_gui_callback(cb: unsafe extern "C" fn(*mut u8, *mut u8)) {
+    let mut backend_lock = crate::start::BACKEND.lock().unwrap();
+    let backend = (*backend_lock).as_mut().unwrap();
+    let cb = std::mem::transmute::<_, CallbackTypeSignature>(cb);
+    backend.callbacks.insert(cb);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn remove_gui_callback(cb: unsafe extern "C" fn(*mut u8, *mut u8)) {
+    let mut backend_lock = crate::start::BACKEND.lock().unwrap();
+    let backend = (*backend_lock).as_mut().unwrap();
+    let cb = std::mem::transmute::<_, CallbackTypeSignature>(cb);
+    backend.callbacks.remove(&cb);
+}
