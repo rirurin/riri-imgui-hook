@@ -10,3 +10,6 @@
 /*/incl/
 /*/middata/
 *.g.cs
+
+# Jetbrains IDE
+.idea/

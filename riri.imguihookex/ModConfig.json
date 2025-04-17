@@ -1,21 +1,21 @@
 {
-  "ModId": "riri.imguihookex","ModName": "Imgui Hook","ModAuthor": "Rirurin","ModVersion": "0.1.0","ModDescription": "Direct3D11/12 hook for Dear Imgui","ModDll": "riri.imguihookex.dll","ModIcon": "Icon.png","ModR2RManagedDll32": "x86/riri.imguihookex.dll","ModR2RManagedDll64": "x64/riri.imguihookex.dll","ModNativeDll32": "","ModNativeDll64": "","PluginData": {
+  "ModId": "riri.imguihookex","ModName": "Riri Imgui Hook","ModAuthor": "Rirurin","ModVersion": "0.2.0","ModDescription": "Direct3D11/12 hook for Dear Imgui","ModDll": "riri.imguihookex.dll","ModIcon": "Icon.png","ModR2RManagedDll32": "x86/riri.imguihookex.dll","ModR2RManagedDll64": "x64/riri.imguihookex.dll","ModNativeDll32": "","ModNativeDll64": "","PluginData": {
     "GithubDependencies": {
       "IdToConfigMap": {
-        "Reloaded.Memory.SigScan.ReloadedII": {
+        "SharedScans.Reloaded": {
           "Config": {
-            "UserName": "Reloaded-Project","RepositoryName": "Reloaded.Memory.SigScan","UseReleaseTag": false,"AssetFileName": "Mod.zip"
-          },"ReleaseMetadataName": "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
+            "UserName": "RyoTune","RepositoryName": "SharedScans","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "SharedScans.Reloaded.ReleaseMetadata.json"
         },
         "reloaded.sharedlib.hooks": {
           "Config": {
             "UserName": "Sewer56","RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII","UseReleaseTag": false,"AssetFileName": "reloaded.sharedlib.hooks.zip"
           },"ReleaseMetadataName": "reloaded.sharedlib.hooks.ReleaseMetadata.json"
         },
-        "SharedScans.Reloaded": {
+        "Reloaded.Memory.SigScan.ReloadedII": {
           "Config": {
-            "UserName": "RyoTune","RepositoryName": "SharedScans","UseReleaseTag": false,"AssetFileName": "Mod.zip"
-          },"ReleaseMetadataName": "SharedScans.Reloaded.ReleaseMetadata.json"
+            "UserName": "Reloaded-Project","RepositoryName": "Reloaded.Memory.SigScan","UseReleaseTag": false,"AssetFileName": "Mod.zip"
+          },"ReleaseMetadataName": "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
         }
       }
     },"GithubRelease": {
@@ -24,10 +24,12 @@
   },"IsLibrary": false,"ReleaseMetadataFileName": "riri.imguihookex.ReleaseMetadata.json","IsUniversalMod": false,"ModDependencies": [
     "reloaded.sharedlib.hooks",
     "Reloaded.Memory.SigScan.ReloadedII",
-    "SharedScans.Reloaded"
+    "SharedScans.Reloaded",
+    "riri.modruntime"
   ],"OptionalDependencies": [],"SupportedAppId": [
     "metaphorrefantazio",
     "metaphor.exe",
-    "p3r.exe"
+    "p3r.exe",
+    "p5r.exe"
   ],"ProjectUrl": "https://riri.wtf"
 }

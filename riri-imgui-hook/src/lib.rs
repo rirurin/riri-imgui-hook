@@ -1,3 +1,4 @@
+pub mod config;
 pub mod d3d11_impl {
     pub mod backup;
     pub mod buffer;

@@ -44,6 +44,18 @@ impl Renderer {
             Self::Direct3D12(r) => r.render(draw_data)
         }
     }
+    pub fn invalidate_device_objects(&mut self, ctx: &mut ImContext) -> windows::core::Result<()> {
+        match self {
+            Self::Direct3D11(r) => r.invalidate_render_target_view(ctx),
+            Self::Direct3D12(r) => r.invalidate_device_objects(ctx),
+        }
+    }
+    pub fn create_device_objects(&mut self, ctx: &mut ImContext) -> windows::core::Result<()> {
+        match self {
+            Self::Direct3D11(r) => unsafe { r.create_render_target_view(ctx) },
+            Self::Direct3D12(r) => unsafe { r.create_device_objects(ctx) }
+        }
+    }
 }
 
 type CallbackTypeSignature = unsafe extern "C" fn(*mut ImUI, *mut <ImContext as RawWrapper>::Raw);
@@ -87,9 +99,15 @@ impl Backend {
         };
         let present_ptr = dummy.get_present_ptr() as usize;
         let resize_buffers_ptr = dummy.get_resize_buffers_ptr() as usize;
+
+        let present_ptr = riri_mod_tools_rt::sigscan_resolver::get_address_may_thunk_absolute(present_ptr).unwrap();
+        let present_ptr = present_ptr.as_ptr() as usize;
         logln!(Verbose, "IDXGISwapChain::Present: 0x{:x}", present_ptr);
         create_hook!(present_ptr, hook_present);
+        let resize_buffers_ptr = riri_mod_tools_rt::sigscan_resolver::get_address_may_thunk_absolute(resize_buffers_ptr).unwrap();
+        let resize_buffers_ptr = resize_buffers_ptr.as_ptr() as usize;
         logln!(Verbose, "IDXGISwapChain::ResizeBuffers: 0x{:x}", resize_buffers_ptr);
+        create_hook!(resize_buffers_ptr, hook_resize_buffers);
     }
 
     pub unsafe fn make_hooks_d3d12() {
@@ -115,15 +133,7 @@ impl Backend {
         let swapchain_ptr = unsafe { *std::mem::transmute::<_, *const usize>(&swapchain) };
         logln!(Verbose, "Got HWND: {}, swapchain: 0x{:x}", desc.OutputWindow.0 as usize, swapchain_ptr);
         let mut imgui = ImContext::create();
-
-        imgui.set_ini_filename(None);
-        imgui.set_log_filename(None);
-
-        // Set per-app flags
-        {
-            let target = crate::start::TARGET.get().unwrap();
-            imgui.io_mut().config_flags |= target.get_config_flags_to_set();
-        }
+        riri_imgui_hook::config::imgui_common_init(&mut imgui, *crate::start::TARGET.get().unwrap());
 
         // ImGui_ImplWin32_Init
         let platform = Win32Impl::new(&mut imgui, desc.OutputWindow);
@@ -131,7 +141,7 @@ impl Backend {
         logln!(Verbose, "Hook WindowProc: 0x{:x}", wnd_proc_ptr);
         create_hook!(wnd_proc_ptr, hook_window_proc);
         // ImGui_ImplDX11_Init
-        let renderer = Renderer::Direct3D11(unsafe { D3D11Hook::new(&mut imgui, swapchain)? });
+        let renderer = Renderer::Direct3D11(D3D11Hook::new(&mut imgui, swapchain)?);
         logln!(Verbose, "Platform: {}, Renderer: {}", imgui.platform_name().unwrap(), imgui.renderer_name().unwrap());
         Ok(Self { imgui, platform, renderer, callbacks: HashSet::new() })
     }
@@ -141,15 +151,7 @@ impl Backend {
         let swapchain_ptr = unsafe { *std::mem::transmute::<_, *const usize>(&swapchain) };
         logln!(Verbose, "Got HWND: {}, swapchain: 0x{:x}", desc.OutputWindow.0 as usize, swapchain_ptr);
         let mut imgui = ImContext::create();
-
-        imgui.set_ini_filename(None);
-        imgui.set_log_filename(None);
-
-        // Set per-app flags
-        {
-            let target = crate::start::TARGET.get().unwrap();
-            imgui.io_mut().config_flags |= target.get_config_flags_to_set();
-        }
+        riri_imgui_hook::config::imgui_common_init(&mut imgui, *crate::start::TARGET.get().unwrap());
 
         // ImGui_ImplWin32_Init
         let platform = Win32Impl::new(&mut imgui, desc.OutputWindow);
@@ -232,17 +234,30 @@ pub unsafe extern "C" fn hook_execute_command_lists(
         original_function!(p_command_queue, command_lists_len, p_command_lists)
     }
 
-/* 
 #[riri_hook_fn(user_defined())]
 pub unsafe extern "C" fn hook_resize_buffers(p_swapchain: *const u8, buffer_count: u32, 
-    width: u32, height: u32, new_format: u32, swapchain_flags: u32) {
-    logln!(Verbose, "Test hook resize buffers!");
-    original_function!(p_swapchain, buffer_count, width, height, new_format, swapchain_flags)
+    width: u32, height: u32, new_format: u32, swapchain_flags: u32) -> i32 {
+    let mut backend_lock = crate::start::BACKEND.lock().unwrap();
+    if let Some(b) = (*backend_lock).as_mut() {
+        logln!(Verbose, "TODO: InvalidateDeviceObjects");
+        let _ = b.renderer.invalidate_device_objects(&mut b.imgui);
+    }
+    let hresult = original_function!(p_swapchain, buffer_count, width, height, new_format, swapchain_flags);
+    if let Some(b) = (*backend_lock).as_mut() {
+        logln!(Verbose, "TODO: CreateDeviceObjects");
+        let _ = b.renderer.create_device_objects(&mut b.imgui);
+    }
+    hresult
 }
-*/
 
 #[no_mangle]
-pub unsafe extern "C" fn add_gui_callback(cb: unsafe extern "C" fn(*mut u8, *mut u8)) {
+pub unsafe extern "C" fn add_gui_callback(cb: unsafe extern "C" fn(*mut u8, *mut u8), version: *const i8) {
+    let external_ver = std::ffi::CStr::from_ptr(version).to_str().unwrap();
+    let local_ver = imgui::dear_imgui_version();
+    if external_ver != local_ver {
+        logln!(Error, "Imgui version is {}, but external crate uses version {}", local_ver, external_ver);
+        return;
+    }
     let mut backend_lock = crate::start::BACKEND.lock().unwrap();
     let backend = (*backend_lock).as_mut().unwrap();
     let cb = std::mem::transmute::<_, CallbackTypeSignature>(cb);

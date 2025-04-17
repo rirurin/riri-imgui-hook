@@ -135,5 +135,6 @@ pub unsafe fn start_d3d11() {
     }
     let dll = DIRECT3D_DLL.get().unwrap().get();
     let name = *DIRECT3D_DLL_NAME.get().unwrap();
+    let name = &name[..name.len()-1]; // remove null terminator
     logln!(Information, "Found DLL for {}: 0x{:x}", name, dll.0 as usize);
 }

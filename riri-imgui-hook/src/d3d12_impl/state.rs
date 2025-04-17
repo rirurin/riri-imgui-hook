@@ -250,6 +250,7 @@ impl D3D12Hook {
         Ok(())
     }
 
+    #[allow(unused_variables)]
     pub unsafe fn setup_render_state(&self, draw_data: &DrawData) {
         // Setup render state structure (for callbacks and custom texture bindings)
 
@@ -275,4 +276,7 @@ impl D3D12Hook {
             MaxDepth: 1.0,
         };
     }
+
+    pub fn invalidate_device_objects(&mut self, _ctx: &mut ImContext) -> windows::core::Result<()> { Ok(()) }
+    pub unsafe fn create_device_objects(&mut self, _ctx: &mut ImContext) -> windows::core::Result<()> { Ok(()) }
 }

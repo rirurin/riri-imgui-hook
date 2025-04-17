@@ -27,3 +27,4 @@ strip = true  # Automatically strip symbols from the binary.
 [profile.release-debug]
 inherits = "release"
 debug = true # Allow us to debug using LLDB
+strip = "none"

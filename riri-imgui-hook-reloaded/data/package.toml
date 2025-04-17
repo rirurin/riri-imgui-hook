@@ -11,7 +11,7 @@ ClientSide = false
 
 Icon = "icon.jxl"
 Reloaded2Icon = "Icon.png"
-SupportedGames = [ "metaphorrefantazio", "metaphor.exe", "p3r.exe" ]
+SupportedGames = [ "metaphorrefantazio", "metaphor.exe", "p3r.exe", "p5r.exe" ]
 
 [CargoImport]
 Summary = true
@@ -57,6 +57,9 @@ HasInterface = true
 [R2Dependencies.UpdateSourceData.Github]
 UserName = "RyoTune"
 RepositoryName = "SharedScans"
+
+[[R2Dependencies]]
+Id = "riri.modruntime"
 
 [HookSettings]
 HookLibrary = "Reloaded2CSharpHooks"

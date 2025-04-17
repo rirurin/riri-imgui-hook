@@ -4,13 +4,15 @@ use riri_imgui_hook::{
     d3d12_impl::init as d3d12_init,
     registry::{ RendererType, RegistryEntry }
 };
-use riri_mod_tools_proc::riri_init_fn;
+use riri_mod_tools_proc::riri_mods_loaded_fn;
 use std::sync::{ Mutex, OnceLock };
 
 pub(crate) static BACKEND: Mutex<Option<Backend>> = Mutex::new(None);
 pub(crate) static TARGET: OnceLock<&'static RegistryEntry<'static>> = OnceLock::new();
 
-#[riri_init_fn()]
+// Wait for all other DLLs to load in case they decide to hook the same functions as us
+// (e.g Steam hooks Present and ResizeBuffers for their game overlay)
+#[riri_mods_loaded_fn()]
 fn start() {
     let _ = TARGET.set(riri_imgui_hook::registry::get_registry_entry());
     let value = *TARGET.get().unwrap();
