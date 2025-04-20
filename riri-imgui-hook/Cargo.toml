@@ -9,10 +9,11 @@ license-file.workspace = true
 edition.workspace = true
 
 [dependencies]
+bitflags = "2.6"
 glam = "0.30.1"
-imgui = { path = "../../imgui-rs/imgui", features = ["tables-api"] }
-riri-mod-tools-proc = { path = "../../riri-mod-tools/riri-mod-tools-proc" }
-riri-mod-tools-rt = { path = "../../riri-mod-tools/riri-mod-tools-rt" }
+imgui = { git = "https://github.com/rirurin/imgui-rs", features = ["tables-api"] }
+riri-mod-tools-proc = { git = "https://github.com/rirurin/riri-mod-tools" }
+riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools" }
 windows-core = "0.61.0"
 
 [dependencies.windows]
@@ -36,7 +37,10 @@ features = [
 [build-dependencies.windows]
 version = "0.61.1"
 features = [
-    "Win32_Foundation",
+    "Win32_Graphics_Direct3D11",
     "Win32_Graphics_Direct3D",
-    "Win32_Graphics_Direct3D_Fxc"
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Direct3D_Fxc",
+    "Win32_Foundation",
 ]

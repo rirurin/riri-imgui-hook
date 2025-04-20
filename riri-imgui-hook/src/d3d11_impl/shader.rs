@@ -1,3 +1,4 @@
+use crate::registry::RegistryFlags;
 use glam::Mat4;
 use windows::{
     core::PCSTR,
@@ -109,11 +110,14 @@ impl VertexShader {
 #[derive(Debug)]
 pub struct PixelShader(Option<ID3D11PixelShader>);
 impl PixelShader {
-    pub unsafe fn new(device: &ID3D11Device) -> windows::core::Result<Self> {
+    pub unsafe fn new(device: &ID3D11Device, flags: RegistryFlags) -> windows::core::Result<Self> {
         let mut out = None;
-        const PIXEL_SHADER: &[u8] = include_bytes!("ps.dxbc");
+        let pixel_shader: &[u8] = match flags.contains(RegistryFlags::USE_SRGB) {
+            true => include_bytes!("ps_srgb.dxbc"),
+            false => include_bytes!("ps.dxbc"),
+        };
         device.CreatePixelShader(
-            PIXEL_SHADER, 
+            pixel_shader,
             None, 
             Some(&raw mut out)
         )?;

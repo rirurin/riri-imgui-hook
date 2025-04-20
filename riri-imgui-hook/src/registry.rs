@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use imgui::ConfigFlags;
 use riri_mod_tools_rt::address::ProcessInfo;
 use windows::Win32::Foundation::HMODULE;
@@ -19,14 +20,27 @@ pub enum RendererType {
     Direct3D12
 }
 
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct RegistryFlags : u32 {
+        const USE_SRGB = 1 << 0;
+    }
+}
+
 pub struct RegistryEntry<'a> {
     executable: &'a str,
     renderer: RendererType,
-    io_config_flags_set: ConfigFlags
+    io_config_flags_set: ConfigFlags,
+    flags: RegistryFlags
 }
 impl<'a> RegistryEntry<'a> {
-    const fn new(executable: &'a str, renderer: RendererType, io_config_flags_set: ConfigFlags) -> Self {
-        Self { executable, renderer, io_config_flags_set }
+    const fn new(
+        executable: &'a str, 
+        renderer: RendererType, 
+        io_config_flags_set: ConfigFlags,
+        flags: RegistryFlags
+    ) -> Self {
+        Self { executable, renderer, io_config_flags_set, flags }
     }
 
     pub fn get_renderer(&self) -> RendererType {
@@ -35,16 +49,19 @@ impl<'a> RegistryEntry<'a> {
     pub fn get_config_flags_to_set(&self) -> ConfigFlags {
         self.io_config_flags_set
     }
+    pub fn get_flags(&self) -> RegistryFlags {
+        self.flags
+    }
 }
 
 pub(crate) static REGISTRY_BY_EXE_NAME: &'static [RegistryEntry<'static>] = &[
-    RegistryEntry::new("METAPHOR.exe", RendererType::Direct3D11, ConfigFlags::IS_SRGB),
-    RegistryEntry::new("P5R.exe", RendererType::Direct3D11, ConfigFlags::empty()),
-    RegistryEntry::new("P3R.exe", RendererType::Direct3D12, ConfigFlags::empty()),
-    RegistryEntry::new("SMT5V-Win64-Shipping.exe", RendererType::Direct3D12, ConfigFlags::empty()),
+    RegistryEntry::new("METAPHOR.exe", RendererType::Direct3D11, ConfigFlags::empty(), RegistryFlags::USE_SRGB),
+    RegistryEntry::new("P5R.exe", RendererType::Direct3D11, ConfigFlags::empty(), RegistryFlags::empty()),
+    RegistryEntry::new("P3R.exe", RendererType::Direct3D12, ConfigFlags::empty(), RegistryFlags::empty()),
+    RegistryEntry::new("SMT5V-Win64-Shipping.exe", RendererType::Direct3D12, ConfigFlags::empty(), RegistryFlags::empty()),
 ];
 pub(crate) static DEFAULT_REGISTRY: RegistryEntry<'static> = 
-    RegistryEntry::new("P5R.exe", RendererType::Direct3D11, ConfigFlags::empty());
+    RegistryEntry::new("P5R.exe", RendererType::Direct3D11, ConfigFlags::empty(), RegistryFlags::empty());
 
 pub fn get_registry_entry() -> &'static RegistryEntry<'static> {
     let process = ProcessInfo::get_current_process().unwrap();

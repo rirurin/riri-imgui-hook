@@ -332,7 +332,7 @@ impl Win32Impl {
             },
             WM_MOUSEWHEEL => {
                 let io = ctx.io_mut();
-                let delta = ((wparam.0 >> u16::BITS as usize) & u16::MAX as usize) as f32 / WHEEL_DELTA as f32;
+                let delta = wparam_get_high_word(wparam) as i16 as f32 / WHEEL_DELTA as f32;
                 io.add_mouse_wheel_event([0.0, delta]);
                 if io.want_capture_mouse {
                     Some(LRESULT(0))
@@ -340,7 +340,7 @@ impl Win32Impl {
             },
             WM_MOUSEHWHEEL => {
                 let io = ctx.io_mut();
-                let delta = ((wparam.0 >> u16::BITS as usize) & u16::MAX as usize) as f32 / WHEEL_DELTA as f32;
+                let delta = wparam_get_high_word(wparam) as i16 as f32 / WHEEL_DELTA as f32;
                 io.add_mouse_wheel_event([-delta, 0.0]);
                 if io.want_capture_mouse {
                     Some(LRESULT(0))

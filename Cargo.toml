@@ -28,3 +28,14 @@ strip = true  # Automatically strip symbols from the binary.
 inherits = "release"
 debug = true # Allow us to debug using LLDB
 strip = "none"
+
+[patch."https://github.com/rirurin/csbindgen"]
+csbindgen = { path = "../csbindgen/csbindgen" }
+
+[patch."https://github.com/rirurin/imgui-rs"]
+imgui = { path = "../imgui-rs/imgui" }
+
+[patch."https://github.com/rirurin/riri-mod-tools"]
+riri-mod-tools-proc = { path = "../riri-mod-tools/riri-mod-tools-proc" }
+riri-mod-tools-rt = { path = "../riri-mod-tools/riri-mod-tools-rt" }
+riri-mod-tools = { path = "../riri-mod-tools/riri-mod-tools" }

@@ -12,11 +12,11 @@ pub(crate) static TARGET: OnceLock<&'static RegistryEntry<'static>> = OnceLock::
 
 // Wait for all other DLLs to load in case they decide to hook the same functions as us
 // (e.g Steam hooks Present and ResizeBuffers for their game overlay)
+// afaik Gamepass does not do this
 #[riri_mods_loaded_fn()]
 fn start() {
     let _ = TARGET.set(riri_imgui_hook::registry::get_registry_entry());
     let value = *TARGET.get().unwrap();
-    // let _ = TARGET.set(riri_imgui_hook::registry::get_target_renderer());
     match value.get_renderer() {
         RendererType::Direct3D11 => {
             std::thread::spawn(|| { unsafe { 

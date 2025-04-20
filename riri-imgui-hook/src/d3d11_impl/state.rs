@@ -1,9 +1,12 @@
-use crate::d3d11_impl::{
-    backup::StateBackup,
-    buffer::{ IndexBuffer, VertexBuffer },
-    devices::DeviceObjects,
-    font::{ FONT_TEX_ID, FontObjects },
-    shader::{ PixelShader, VertexShader },
+use crate::{
+    d3d11_impl::{
+        backup::StateBackup,
+        buffer::{ IndexBuffer, VertexBuffer },
+        devices::DeviceObjects,
+        font::{ FONT_TEX_ID, FontObjects },
+        shader::{ PixelShader, VertexShader },
+    },
+    registry::RegistryFlags
 };
 use glam::{ Mat4, Vec4 };
 use imgui::{
@@ -18,6 +21,7 @@ use imgui::{
     Textures,
     TextureId
 };
+// use riri_mod_tools_rt::logln;
 use std::mem::MaybeUninit;
 use windows::Win32::{
     Foundation::RECT,
@@ -72,9 +76,9 @@ unsafe impl Send for D3D11Hook {}
 unsafe impl Sync for D3D11Hook {}
 
 impl D3D11Hook { 
-    pub fn new(ctx: &mut ImContext, swapchain: IDXGISwapChain) -> windows::core::Result<Self> {
+    pub fn new(ctx: &mut ImContext, swapchain: IDXGISwapChain, flags: RegistryFlags) -> windows::core::Result<Self> {
         let mut new = unsafe { Self::new_blank(ctx, swapchain)}?;
-        unsafe { new.create_device_objects(ctx)? }
+        unsafe { new.create_device_objects(ctx, flags)? }
         Ok(new)
     }
     pub unsafe fn new_blank(ctx: &mut ImContext, swapchain: IDXGISwapChain) -> windows::core::Result<Self> {
@@ -99,11 +103,11 @@ impl D3D11Hook {
         })
     }
     // ImGui_ImplDX11_CreateDeviceObjects
-    pub unsafe fn create_device_objects(&mut self, ctx: &mut ImContext) -> windows::core::Result<()> {
+    pub unsafe fn create_device_objects(&mut self, ctx: &mut ImContext, flags: RegistryFlags) -> windows::core::Result<()> {
         let back_buffer = self.swapchain.GetBuffer::<ID3D11Texture2D>(0)?;
         self.device.CreateRenderTargetView(&back_buffer, None, Some(&raw mut self.render_target_view))?;
         self.vertex_shader = Some(VertexShader::new(&self.device)?);
-        self.pixel_shader = Some(PixelShader::new(&self.device)?);
+        self.pixel_shader = Some(PixelShader::new(&self.device, flags)?);
         self.device_objects = Some(DeviceObjects::new(&self.device)?);
         self.font_data = Some(FontObjects::new(ctx.fonts(), &self.device)?);
         self.vertex_buffer = Some(VertexBuffer::new(&self.device, 0)?);
@@ -120,9 +124,11 @@ impl D3D11Hook {
         }
         unsafe {
             if self.vertex_buffer.as_ref().unwrap().len() < draw_data.total_vtx_count as usize {
+                // logln!(Verbose, "VERTEX BUFFER [ len: {}, cap: {} ]", draw_data.total_vtx_count, self.vertex_buffer.as_ref().unwrap().len());
                 self.vertex_buffer = Some(VertexBuffer::new(&self.device, draw_data.total_vtx_count as usize)?);
             }
             if self.index_buffer.as_ref().unwrap().len() < draw_data.total_idx_count as usize {
+                // logln!(Verbose, "INDEX BUFFER [ len: {}, cap: {} ]", draw_data.total_idx_count, self.index_buffer.as_ref().unwrap().len());
                 self.index_buffer = Some(IndexBuffer::new(&self.device, draw_data.total_idx_count as usize)?);
             }
             let _state_guard = StateBackup::backup(Some(self.context.clone()));
@@ -134,7 +140,7 @@ impl D3D11Hook {
         Ok(())
     }
 
-    unsafe fn write_buffers(&self, draw_data: &DrawData) -> windows::core::Result<()> {
+    unsafe fn write_buffers(&mut self, draw_data: &DrawData) -> windows::core::Result<()> {
         let mut vtx_resource: MaybeUninit<D3D11_MAPPED_SUBRESOURCE> = MaybeUninit::uninit();
         let mut idx_resource: MaybeUninit<D3D11_MAPPED_SUBRESOURCE> = MaybeUninit::uninit();
         self.context.Map(self.vertex_buffer.as_ref().unwrap().get_buffer().map(|v| v.into()), 0, D3D11_MAP_WRITE_DISCARD, 0, Some(vtx_resource.as_mut_ptr()))?;
@@ -158,8 +164,9 @@ impl D3D11Hook {
         self.context.Unmap(self.vertex_buffer.as_ref().unwrap().get_buffer().map(|v| v.into()), 0);
         self.context.Unmap(self.index_buffer.as_ref().unwrap().get_buffer().map(|v| v.into()), 0);
         let mut mapped_resource: MaybeUninit<D3D11_MAPPED_SUBRESOURCE> = MaybeUninit::uninit();
+        let vtx_buf = self.vertex_shader.as_mut().unwrap();
         self.context.Map(
-            self.vertex_shader.as_ref().unwrap().get_constant_buffer().map(|v| v.into()),
+            vtx_buf.get_constant_buffer().map(|v| v.into()),
             0, D3D11_MAP_WRITE_DISCARD, 0, 
             Some(mapped_resource.as_mut_ptr())
         )?;
@@ -173,8 +180,8 @@ impl D3D11Hook {
             Vec4::new(0.0, 0.0, 0.5, 0.0),
             Vec4::new((r + l) / (l - r), (t + b) / (b - t), 0.5, 1.0),
         );
-        *mapped_resource.assume_init_ref().pData.cast::<Mat4>() = mvp;
-        self.context.Unmap(self.vertex_shader.as_ref().unwrap().get_constant_buffer().map(|v| v.into()), 0);
+        *mapped_resource.assume_init_mut().pData.cast::<Mat4>() = mvp;
+        self.context.Unmap(vtx_buf.get_constant_buffer().map(|v| v.into()), 0);
         Ok(())
     }
 

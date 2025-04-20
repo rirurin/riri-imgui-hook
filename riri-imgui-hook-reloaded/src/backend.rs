@@ -7,7 +7,7 @@ use riri_imgui_hook::{
         init::D3D12Init,
         state::D3D12Hook
     },
-    registry::RendererType,
+    registry::{ RendererType, RegistryFlags },
     win32_impl::state::Win32Impl
 };
 use imgui::{
@@ -44,13 +44,13 @@ impl Renderer {
             Self::Direct3D12(r) => r.render(draw_data)
         }
     }
-    pub fn invalidate_device_objects(&mut self, ctx: &mut ImContext) -> windows::core::Result<()> {
+    pub fn invalidate_render_target_view(&mut self, ctx: &mut ImContext) -> windows::core::Result<()> {
         match self {
             Self::Direct3D11(r) => r.invalidate_render_target_view(ctx),
             Self::Direct3D12(r) => r.invalidate_device_objects(ctx),
         }
     }
-    pub fn create_device_objects(&mut self, ctx: &mut ImContext) -> windows::core::Result<()> {
+    pub fn create_render_target_view(&mut self, ctx: &mut ImContext) -> windows::core::Result<()> {
         match self {
             Self::Direct3D11(r) => unsafe { r.create_render_target_view(ctx) },
             Self::Direct3D12(r) => unsafe { r.create_device_objects(ctx) }
@@ -100,14 +100,14 @@ impl Backend {
         let present_ptr = dummy.get_present_ptr() as usize;
         let resize_buffers_ptr = dummy.get_resize_buffers_ptr() as usize;
 
-        let present_ptr = riri_mod_tools_rt::sigscan_resolver::get_address_may_thunk_absolute(present_ptr).unwrap();
-        let present_ptr = present_ptr.as_ptr() as usize;
-        logln!(Verbose, "IDXGISwapChain::Present: 0x{:x}", present_ptr);
-        create_hook!(present_ptr, hook_present);
-        let resize_buffers_ptr = riri_mod_tools_rt::sigscan_resolver::get_address_may_thunk_absolute(resize_buffers_ptr).unwrap();
-        let resize_buffers_ptr = resize_buffers_ptr.as_ptr() as usize;
-        logln!(Verbose, "IDXGISwapChain::ResizeBuffers: 0x{:x}", resize_buffers_ptr);
-        create_hook!(resize_buffers_ptr, hook_resize_buffers);
+        let present_ptr_thunk = riri_mod_tools_rt::sigscan_resolver::get_address_may_thunk_absolute(present_ptr).unwrap();
+        let present_ptr_thunk = present_ptr_thunk.as_ptr() as usize;
+        logln!(Verbose, "IDXGISwapChain::Present: 0x{:x} -> 0x{:x}", present_ptr, present_ptr_thunk);
+        create_hook!(present_ptr_thunk, hook_present);
+        let resize_buffers_ptr_thunk = riri_mod_tools_rt::sigscan_resolver::get_address_may_thunk_absolute(resize_buffers_ptr).unwrap();
+        let resize_buffers_ptr_thunk = resize_buffers_ptr_thunk.as_ptr() as usize;
+        logln!(Verbose, "IDXGISwapChain::ResizeBuffers: 0x{:x} -> 0x{:x}", resize_buffers_ptr, resize_buffers_ptr_thunk);
+        create_hook!(resize_buffers_ptr_thunk, hook_resize_buffers);
     }
 
     pub unsafe fn make_hooks_d3d12() {
@@ -128,7 +128,7 @@ impl Backend {
         create_hook!(exec_cmd_list_ptr, hook_execute_command_lists);
     }
 
-    pub fn init_d3d11(swapchain: IDXGISwapChain) -> Result<Self, Box<dyn Error>> {
+    pub fn init_d3d11(swapchain: IDXGISwapChain, flags: RegistryFlags) -> Result<Self, Box<dyn Error>> {
         let desc = unsafe { (&swapchain).GetDesc()? };
         let swapchain_ptr = unsafe { *std::mem::transmute::<_, *const usize>(&swapchain) };
         logln!(Verbose, "Got HWND: {}, swapchain: 0x{:x}", desc.OutputWindow.0 as usize, swapchain_ptr);
@@ -141,7 +141,7 @@ impl Backend {
         logln!(Verbose, "Hook WindowProc: 0x{:x}", wnd_proc_ptr);
         create_hook!(wnd_proc_ptr, hook_window_proc);
         // ImGui_ImplDX11_Init
-        let renderer = Renderer::Direct3D11(D3D11Hook::new(&mut imgui, swapchain)?);
+        let renderer = Renderer::Direct3D11(D3D11Hook::new(&mut imgui, swapchain, flags)?);
         logln!(Verbose, "Platform: {}, Renderer: {}", imgui.platform_name().unwrap(), imgui.renderer_name().unwrap());
         Ok(Self { imgui, platform, renderer, callbacks: HashSet::new() })
     }
@@ -167,6 +167,7 @@ impl Backend {
     pub fn tick(&mut self) {
         self.platform.new_frame(&mut self.imgui);
         // self.renderer.new_frame (just calls CreateDeviceObjects if font sampler isn't initialized)
+        // let _ui = self.imgui.new_frame();
         let ui = self.imgui.new_frame();
         let ui_ptr = &raw mut *ui;
         let ctx_ptr = unsafe { &raw mut *self.imgui.raw_mut() };
@@ -188,10 +189,11 @@ pub unsafe extern "C" fn hook_present(p_swapchain: *const u8, sync_interval: u32
     match (*backend_lock).as_mut() {
         Some(v) => { v.tick(); },
         None => { 
-            *backend_lock = match crate::start::TARGET.get().unwrap().get_renderer() {
+            let target = *crate::start::TARGET.get().unwrap();
+            *backend_lock = match target.get_renderer() {
                 RendererType::Direct3D11 => {
                     let swapchain = std::mem::transmute::<_, IDXGISwapChain>(p_swapchain).clone();
-                    Some(Backend::init_d3d11(swapchain).unwrap())
+                    Some(Backend::init_d3d11(swapchain, target.get_flags()).unwrap())
                 },
                 RendererType::Direct3D12 => {
                     if let Some(cmd) = COMMAND_QUEUE.try_get() {
@@ -239,14 +241,15 @@ pub unsafe extern "C" fn hook_resize_buffers(p_swapchain: *const u8, buffer_coun
     width: u32, height: u32, new_format: u32, swapchain_flags: u32) -> i32 {
     let mut backend_lock = crate::start::BACKEND.lock().unwrap();
     if let Some(b) = (*backend_lock).as_mut() {
-        logln!(Verbose, "TODO: InvalidateDeviceObjects");
-        let _ = b.renderer.invalidate_device_objects(&mut b.imgui);
+        let _ = b.renderer.invalidate_render_target_view(&mut b.imgui);
     }
+    drop(backend_lock);
     let hresult = original_function!(p_swapchain, buffer_count, width, height, new_format, swapchain_flags);
+    let mut backend_lock = crate::start::BACKEND.lock().unwrap();
     if let Some(b) = (*backend_lock).as_mut() {
-        logln!(Verbose, "TODO: CreateDeviceObjects");
-        let _ = b.renderer.create_device_objects(&mut b.imgui);
+        let _ = b.renderer.create_render_target_view(&mut b.imgui);
     }
+    drop(backend_lock);
     hresult
 }
 

@@ -11,10 +11,10 @@ edition.workspace = true
 
 [dependencies]
 glam = "0.30.1"
-imgui = { path = "../../imgui-rs/imgui", features = ["tables-api"] }
+imgui = { git = "https://github.com/rirurin/imgui-rs", features = ["tables-api"] }
 riri-imgui-hook = { path = "../riri-imgui-hook" }
-riri-mod-tools-proc = { path = "../../riri-mod-tools/riri-mod-tools-proc" }
-riri-mod-tools-rt = { path = "../../riri-mod-tools/riri-mod-tools-rt" }
+riri-mod-tools-proc = { git = "https://github.com/rirurin/riri-mod-tools" }
+riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools" }
 windows-core = "0.61.0"
 
 [dependencies.windows]
@@ -35,6 +35,5 @@ features = [
 [build-dependencies]
 toml = "0.8"
 walkdir = "2.5"
-# csbindgen = "1.8"
-csbindgen = { version = "1.8", path = "../../csbindgen/csbindgen" }
-riri-mod-tools = { path = "../../riri-mod-tools/riri-mod-tools" }
+csbindgen = { git = "https://github.com/rirurin/csbindgen", branch = "riri-mod-tools" }
+riri-mod-tools = { git = "https://github.com/rirurin/riri-mod-tools" }

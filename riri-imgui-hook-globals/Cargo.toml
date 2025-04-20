@@ -11,7 +11,7 @@ edition.workspace = true
 [dependencies]
 riri-imgui-hook = { path = "../riri-imgui-hook" }
 riri-imgui-hook-proc = { path = "../riri-imgui-hook-proc" }
-riri-mod-tools-proc = { path = "../../riri-mod-tools/riri-mod-tools-proc" }
+riri-mod-tools-proc = { git = "https://github.com/rirurin/riri-mod-tools" }
 
 [build-dependencies]
 riri-imgui-hook-proc-impl = { path = "../riri-imgui-hook-proc-impl" }
