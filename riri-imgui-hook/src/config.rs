@@ -1,5 +1,6 @@
 use crate::registry::RegistryEntry;
 use imgui::{
+    ConfigFlags,
     Context as ImContext,
     FontConfig,
     FontGlyphRanges,
@@ -16,6 +17,7 @@ pub fn imgui_common_init(imgui: &mut ImContext, registry: &RegistryEntry) {
     imgui.set_log_filename(None);
     // Set per-app flags
     imgui.io_mut().config_flags |= registry.get_config_flags_to_set();
+    imgui.io_mut().config_flags |= ConfigFlags::DOCKING_ENABLE;
     let font_path = mod_dir.join("NotoSansCJKjp-Medium.otf");
     let font_data = match std::fs::read(font_path) {
         Ok(f) => f,

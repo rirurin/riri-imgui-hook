@@ -59,6 +59,11 @@ impl Renderer {
 }
 
 type CallbackTypeSignature = unsafe extern "C" fn(*mut ImUI, *mut <ImContext as RawWrapper>::Raw);
+type CallbackInitAllocator = unsafe extern "C" fn(
+    imgui::sys::ImGuiMemAllocFunc,
+    imgui::sys::ImGuiMemFreeFunc,
+    *mut std::ffi::c_void
+);
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -66,7 +71,8 @@ pub struct Backend {
     imgui: ImContext,
     platform: Win32Impl,
     renderer: Renderer,
-    callbacks: HashSet<CallbackTypeSignature>
+    callbacks: HashSet<CallbackTypeSignature>,
+    allocator_callbacks: Vec<CallbackInitAllocator>
 }
 
 struct CommandQueueStore(Mutex<Option<NonNull<u8>>>);
@@ -143,7 +149,7 @@ impl Backend {
         // ImGui_ImplDX11_Init
         let renderer = Renderer::Direct3D11(D3D11Hook::new(&mut imgui, swapchain, flags)?);
         logln!(Verbose, "Platform: {}, Renderer: {}", imgui.platform_name().unwrap(), imgui.renderer_name().unwrap());
-        Ok(Self { imgui, platform, renderer, callbacks: HashSet::new() })
+        Ok(Self { imgui, platform, renderer, callbacks: HashSet::new(), allocator_callbacks: vec![] })
     }
 
     pub fn init_d3d12(swapchain: IDXGISwapChain1, command_queue: ID3D12CommandQueue) -> Result<Self, Box<dyn Error>> {
@@ -161,7 +167,7 @@ impl Backend {
         // ImGui_ImplDX12_Init
         let renderer = Renderer::Direct3D12(unsafe { D3D12Hook::new(&mut imgui, swapchain, command_queue)? });
         logln!(Verbose, "Platform: {}, Renderer: {}", imgui.platform_name().unwrap(), imgui.renderer_name().unwrap());
-        Ok(Self { imgui, platform, renderer, callbacks: HashSet::new() })
+        Ok(Self { imgui, platform, renderer, callbacks: HashSet::new(), allocator_callbacks: vec![] })
     }
 
     pub fn tick(&mut self) {
@@ -171,6 +177,16 @@ impl Backend {
         let ui = self.imgui.new_frame();
         let ui_ptr = &raw mut *ui;
         let ctx_ptr = unsafe { &raw mut *self.imgui.raw_mut() };
+        if self.allocator_callbacks.len() > 0 {
+            let (
+                alloc, 
+                free, 
+                user
+            ) = ImContext::get_allocator_functions();
+            while let Some(cb) = self.allocator_callbacks.pop() {
+                unsafe { cb(alloc, free, user) }
+            }
+        }
         for cb in self.callbacks.iter() {
             unsafe { cb(ui_ptr, ctx_ptr) }
         }
@@ -265,6 +281,14 @@ pub unsafe extern "C" fn add_gui_callback(cb: unsafe extern "C" fn(*mut u8, *mut
     let backend = (*backend_lock).as_mut().unwrap();
     let cb = std::mem::transmute::<_, CallbackTypeSignature>(cb);
     backend.callbacks.insert(cb);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn add_allocator(cb: unsafe extern "C" fn (*mut u8, *mut u8, *mut u8)) {
+    let mut backend_lock = crate::start::BACKEND.lock().unwrap();
+    let backend = (*backend_lock).as_mut().unwrap();
+    let cb = std::mem::transmute::<_, CallbackInitAllocator>(cb);
+    backend.allocator_callbacks.push(cb);
 }
 
 #[no_mangle]

@@ -11,7 +11,7 @@ edition.workspace = true
 
 [dependencies]
 glam = "0.30.1"
-imgui = { git = "https://github.com/rirurin/imgui-rs", features = ["tables-api"] }
+imgui = { git = "https://github.com/rirurin/imgui-rs", features = ["docking", "tables-api"] }
 riri-imgui-hook = { path = "../riri-imgui-hook" }
 riri-mod-tools-proc = { git = "https://github.com/rirurin/riri-mod-tools" }
 riri-mod-tools-rt = { git = "https://github.com/rirurin/riri-mod-tools" }
