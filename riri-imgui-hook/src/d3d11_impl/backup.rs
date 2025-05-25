@@ -8,6 +8,7 @@ use windows::Win32::{
         },
         Direct3D11::{
             D3D11_VIEWPORT,
+            // D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE, (16)
             ID3D11BlendState,
             ID3D11Buffer,
             ID3D11ClassInstance,
@@ -28,11 +29,11 @@ use windows::Win32::{
 // "Backup DX state that will be modified to restore it afterwards (unfortunately this is very ugly looking and verbose. Close your eyes!)"
 // So true bestie
 #[allow(dead_code)]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct StateBackup {
     context: Option<ID3D11DeviceContext>,
-    scissor_rects: RECT,
-    viewports: D3D11_VIEWPORT,
+    scissor_rects: [RECT; 16],
+    viewports: [D3D11_VIEWPORT; 16],
     rasterizer_state: Option<ID3D11RasterizerState>,
     blend_state: Option<ID3D11BlendState>,
     blend_factor: f32,
@@ -42,12 +43,12 @@ pub(crate) struct StateBackup {
     shader_resource: Vec<Option<ID3D11ShaderResourceView>>,
     sampler: Vec<Option<ID3D11SamplerState>>,
     ps_shader: Option<ID3D11PixelShader>,
-    ps_instances: Option<ID3D11ClassInstance>,
+    ps_instances: [Option<ID3D11ClassInstance>; 256],
     vs_shader: Option<ID3D11VertexShader>,
-    vs_instances: Option<ID3D11ClassInstance>,
+    vs_instances: [Option<ID3D11ClassInstance>; 256],
     constant_buffer: Vec<Option<ID3D11Buffer>>,
     gs_shader: Option<ID3D11GeometryShader>,
-    gs_instances: Option<ID3D11ClassInstance>,
+    gs_instances: [Option<ID3D11ClassInstance>; 256],
     index_buffer: Option<ID3D11Buffer>,
     index_buffer_offset: u32,
     index_buffer_format: DXGI_FORMAT,
@@ -58,14 +59,47 @@ pub(crate) struct StateBackup {
     input_layout: Option<ID3D11InputLayout>,
 }
 
+impl Default for StateBackup {
+    fn default() -> Self {
+        Self {
+            context: Option::<ID3D11DeviceContext>::default(),
+            scissor_rects: [RECT::default(); 16],
+            viewports: [D3D11_VIEWPORT::default(); 16],
+            rasterizer_state: Option::<ID3D11RasterizerState>::default(),
+            blend_state: Option::<ID3D11BlendState>::default(),
+            blend_factor: f32::default(),
+            sample_mask: u32::default(),
+            depth_stencil_state: Option::<ID3D11DepthStencilState>::default(),
+            stencil_ref: u32::default(),
+            shader_resource: Vec::<Option::<ID3D11ShaderResourceView>>::default(),
+            sampler: Vec::<Option::<ID3D11SamplerState>>::default(),
+            ps_shader: Option::<ID3D11PixelShader>::default(),
+            ps_instances: std::array::from_fn::<_, 256, _>(|_| Option::<ID3D11ClassInstance>::default()),
+            vs_shader: Option::<ID3D11VertexShader>::default(),
+            vs_instances: std::array::from_fn::<_, 256, _>(|_| Option::<ID3D11ClassInstance>::default()),
+            constant_buffer: Vec::<Option::<ID3D11Buffer>>::default(),
+            gs_shader: Option::<ID3D11GeometryShader>::default(),
+            gs_instances: std::array::from_fn::<_, 256, _>(|_| Option::<ID3D11ClassInstance>::default()),
+            index_buffer: Option::<ID3D11Buffer>::default(),
+            index_buffer_offset: u32::default(),
+            index_buffer_format: DXGI_FORMAT::default(),
+            vertex_buffer: Option::<ID3D11Buffer>::default(),
+            vertex_buffer_offset: u32::default(),
+            vertex_buffer_stride: u32::default(),
+            topology: D3D_PRIMITIVE_TOPOLOGY::default(),
+            input_layout: Option::<ID3D11InputLayout>::default(),
+        }
+    }
+}
+
 #[allow(dead_code)]
 impl StateBackup {
     pub(crate) unsafe fn backup(context: Option<ID3D11DeviceContext>) -> Self {
         let mut result = Self::default();
 
         let ctx = context.as_ref().unwrap();
-        ctx.RSGetScissorRects(&mut 16, Some(&mut result.scissor_rects));
-        ctx.RSGetViewports(&mut 16, Some(&mut result.viewports));
+        ctx.RSGetScissorRects(&mut 16, Some(result.scissor_rects.as_mut_ptr()));
+        ctx.RSGetViewports(&mut 16, Some(result.viewports.as_mut_ptr()));
         result.rasterizer_state = match ctx.RSGetState() {
             Ok(v) => Some(v),
             Err(_) => None
@@ -81,10 +115,10 @@ impl StateBackup {
         );
         ctx.PSGetShaderResources(0, Some(&mut result.shader_resource));
         ctx.PSGetSamplers(0, Some(&mut result.sampler));
-        ctx.PSGetShader(&mut result.ps_shader, Some(&mut result.ps_instances), Some(&mut 256));
-        ctx.VSGetShader(&mut result.vs_shader, Some(&mut result.vs_instances), Some(&mut 256));
+        ctx.PSGetShader(&mut result.ps_shader, Some(result.ps_instances.as_mut_ptr()), Some(&mut 256));
+        ctx.VSGetShader(&mut result.vs_shader, Some(result.vs_instances.as_mut_ptr()), Some(&mut 256));
         ctx.VSGetConstantBuffers(0, Some(result.constant_buffer.as_mut_slice()));
-        ctx.GSGetShader(&mut result.gs_shader, Some(&mut result.gs_instances), Some(&mut 256));
+        ctx.GSGetShader(&mut result.gs_shader, Some(result.gs_instances.as_mut_ptr()), Some(&mut 256));
         result.topology = ctx.IAGetPrimitiveTopology();
         ctx.IAGetIndexBuffer(
             Some(&mut result.index_buffer),
@@ -105,23 +139,18 @@ impl StateBackup {
         result.context = context;
         result
     }
-    pub(crate) fn restore(mut self) {
+    pub(crate) fn restore(self) {
         unsafe {
             let ctx = self.context.as_ref().unwrap();
-            let inst =
-                if self.ps_instances.is_some() { vec![self.ps_instances.take()] } else { vec![] };
-            let vinst =
-                if self.vs_instances.is_some() { vec![self.vs_instances.take()] } else { vec![] };
-
-            ctx.RSSetScissorRects(Some(&[self.scissor_rects]));
-            ctx.RSSetViewports(Some(&[self.viewports]));
+            ctx.RSSetScissorRects(Some(self.scissor_rects.as_slice()));
+            ctx.RSSetViewports(Some(self.viewports.as_slice()));
             ctx.RSSetState(self.rasterizer_state.as_ref());
             ctx.OMSetBlendState(self.blend_state.as_ref(), Some(&[self.blend_factor; 4]), 0xFFFFFFFF);
             ctx.OMSetDepthStencilState(self.depth_stencil_state.as_ref(), self.stencil_ref);
             ctx.PSSetShaderResources(0, Some(self.shader_resource.as_slice()));
             ctx.PSSetSamplers(0, Some(self.sampler.as_slice()));
-            ctx.PSSetShader(self.ps_shader.as_ref(), Some(inst.as_slice()));
-            ctx.VSSetShader(self.vs_shader.as_ref(), Some(vinst.as_slice()));
+            ctx.PSSetShader(self.ps_shader.as_ref(), Some(self.ps_instances.as_slice()));
+            ctx.VSSetShader(self.vs_shader.as_ref(), Some(self.vs_instances.as_slice()));
             ctx.VSSetConstantBuffers(0, Some(self.constant_buffer.as_slice()));
             ctx.GSSetShader(self.gs_shader.as_ref(), Some(&[]));
             ctx.IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

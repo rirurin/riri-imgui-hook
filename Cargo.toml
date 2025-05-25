@@ -17,7 +17,7 @@ repository = "https://github.com/rirurin/riri-imgui-hook"
 license-file = "LICENSE"
 edition = "2021"
 
-# Optimized Release Build
+# Optimized Release Build, all the optimizations!!
 [profile.release]
 codegen-units = 1
 lto = true
@@ -27,7 +27,15 @@ strip = true  # Automatically strip symbols from the binary.
 [profile.release-debug]
 inherits = "release"
 debug = true # Allow us to debug using LLDB
-strip = "none"
+
+# Slow Debug, for fast iteration
+[profile.slow-debug]
+inherits = "release"
+debug = true
+# lto = "thin"
+lto = false
+incremental = true
+codegen-units = 64
 
 [patch."https://github.com/rirurin/csbindgen"]
 csbindgen = { path = "../csbindgen/csbindgen" }

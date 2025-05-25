@@ -75,7 +75,7 @@ function BuildRustCrate {
         [string] $BuildStdFeatures,
         [string] $CrateType
     )
-    $RustProfile = if ($IsDebug) { "--profile=release-debug" } else { "--profile=release" }
+    $RustProfile = if ($IsDebug) { "--profile=slow-debug" } else { "--profile=release" }
     cargo +nightly rustc --lib $RustProfile -Z build-std=$BuildStd -Z build-std-features=$BuildStdFeatures --crate-type $CrateType --target $global:TARGET
     # cargo +nightly rustc -vv --lib $RustProfile -Z build-std=$BuildStd -Z build-std-features=$BuildStdFeatures --crate-type $CrateType --target $global:TARGET
     if (!$?) {
@@ -114,7 +114,7 @@ Split-Path $MyInvocation.MyCommand.Path | Push-Location
 [Environment]::CurrentDirectory = $PWD
 $BASE_PATH = (Get-Location).ToString();
 [System.Environment]::SetEnvironmentVariable("RUST_BACKTRACE", 1)
-[System.Environment]::SetEnvironmentVariable("RUSTFLAGS", "-C panic=abort -C lto=fat -C embed-bitcode=yes -C target_cpu=native")
+[System.Environment]::SetEnvironmentVariable("RUSTFLAGS", "-C panic=abort -C lto=fat -C embed-bitcode=yes -C target-feature=+avx2")
 
 $RELOADED_MOD_DIRECTORY = [IO.Path]::Combine((GetNonNullEnvironmentVariable -EnvVariable RELOADEDIIMODS), $global:RELOADED_ENTRYPOINT)
 

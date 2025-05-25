@@ -22,23 +22,26 @@ use imgui::{
     TextureId
 };
 // use riri_mod_tools_rt::logln;
-use std::mem::MaybeUninit;
-use windows::Win32::{
-    Foundation::RECT,
-    Graphics::{
-        Dxgi::{
-            DXGI_ERROR_INVALID_CALL,
-            IDXGISwapChain
-        },
-        Direct3D11::{
-            D3D11_MAPPED_SUBRESOURCE,
-            D3D11_MAP_WRITE_DISCARD,
-            D3D11_VIEWPORT,
-            ID3D11Device,
-            ID3D11DeviceContext,
-            ID3D11RenderTargetView,
-            ID3D11ShaderResourceView,
-            ID3D11Texture2D,
+use std::{
+    ffi::c_void,
+    mem::MaybeUninit
+};
+use windows::{
+    core::Interface,
+    Win32::{
+        Foundation::RECT,
+        Graphics::{
+            Dxgi::IDXGISwapChain,
+            Direct3D11::{
+                D3D11_MAPPED_SUBRESOURCE,
+                D3D11_MAP_WRITE_DISCARD,
+                D3D11_VIEWPORT,
+                ID3D11Device,
+                ID3D11DeviceContext,
+                ID3D11RenderTargetView,
+                ID3D11ShaderResourceView,
+                ID3D11Texture2D,
+            }
         }
     }
 };
@@ -237,6 +240,7 @@ impl D3D11Hook {
                         cmd_params: DrawCmdParams { clip_rect, texture_id, .. },
                     } => {
                         if texture_id != last_tex {
+                            /* 
                             let texture = if texture_id.id() == FONT_TEX_ID {
                                 self.font_data.as_ref().unwrap().get_font_resource_view()
                             } else {
@@ -244,6 +248,12 @@ impl D3D11Hook {
                                     .get(texture_id)
                                     .ok_or(DXGI_ERROR_INVALID_CALL)?
                                     .clone())
+                            };
+                            */
+                            let texture = if texture_id.id() == FONT_TEX_ID {
+                                self.font_data.as_ref().unwrap().get_font_resource_view()
+                            } else {
+                                Some(ID3D11ShaderResourceView::from_raw(texture_id.id() as *mut c_void))
                             };
                             context.PSSetShaderResources(0, Some(&[texture]));
                             last_tex = texture_id;
