@@ -74,4 +74,3 @@ fn main() {
     // Copy middata to C# project 
     copy_to_output(&middata, &output_path).unwrap();
 }
-

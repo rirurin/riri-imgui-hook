@@ -64,7 +64,7 @@ function GetRustCrateTargetDirectory {
     param (
         [string] $Path
     )
-    $ProfileFolder = if ($IsDebug) { "release-debug" } else { "release" }
+    $ProfileFolder = if ($IsDebug) { "slow-debug" } else { "release" }
     GoToFolder -Path ([IO.Path]::Combine($Path, "target", $global:TARGET, $ProfileFolder))
 }
 
